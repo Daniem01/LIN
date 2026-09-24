@@ -8,7 +8,7 @@ int modulo_lin_init(void)
 	printk(KERN_INFO "Modulo LIN cargado. Hola kernel.\n");
 
 	/* Devolver 0 para indicar una carga correcta del módulo */
-	return 0;
+	return -EIO;
 }
 
 /* Función que se invoca cuando se descarga el módulo del kernel */
