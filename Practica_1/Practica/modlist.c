@@ -4,6 +4,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
+#include <linux/list.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist");
@@ -21,7 +22,7 @@ struct list_item
     struct list_head links;
 };
 
-static ssize_t clipboard_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
     int available_space = BUFFER_LENGTH - 1;
 
@@ -30,9 +31,41 @@ static ssize_t clipboard_write(struct file *filp, const char __user *buf, size_t
 
     if (len > available_space)
     {
-        printk(KERN_INFO "clipboard: not enough space!!\n");
+        printk(KERN_INFO "Modlist: not enough space!!\n");
         return -ENOSPC;
     }
+
+    int number;
+    char* string;
+
+    // Copiar el buffer del usuario al nuestro para evitar problemas
+    // if(sscanf (buf, "add %i, &num") == 1)
+
+    sscanf(buf,"%s %d",string,&number);
+
+    if(strcmp(string,"add") == 0){
+        struct list_item newItem = kmalloc(sizeof(list_item), GFP_KERNEL);
+        newItem.data = number;
+
+        list_add_tail(newItem.links,&mylist);
+    }
+    else if(strcmp(string,"remove") == 0){
+        struct list_item* item=NULL;
+        struct list_head* cur_node=NULL;
+
+        list_for_each_safe(cur_node,&mylist){
+            item = list_entry(cur_node,struct list_item,links);
+            if(item.data==)
+        }
+    }
+    else if(strcmp(string,"cleanup") == 0){
+
+    }
+    else{
+        printk(KERN_INFO "Modlist: Operation not permitted\n");
+        return -EPERM;
+    }
+
 
     /* Transfer data from user to kernel space */
     if (copy_from_user(&clipboard[0], buf, len))
@@ -44,7 +77,7 @@ static ssize_t clipboard_write(struct file *filp, const char __user *buf, size_t
     return len;
 }
 
-static ssize_t clipboard_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
+static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
 
     int nr_bytes;
@@ -67,44 +100,39 @@ static ssize_t clipboard_read(struct file *filp, char __user *buf, size_t len, l
 }
 
 static const struct proc_ops proc_entry_fops = {
-    .proc_read = clipboard_read,
-    .proc_write = clipboard_write,
+    .proc_read = modlist_read,
+    .proc_write = modlist_write,
 };
 
 int init_modlist_module(void)
 {
     int ret = 0;
-    mylist = (char *)kmalloc(BUFFER_LENGTH);
 
-    if (!mylist)
+    // Inicializamos la lista
+    INIT_LIST_HEAD(&mylist);
+
+    // Creamos la entrada modlist
+    proc_entry = proc_create("modlist", 0666, NULL, &proc_entry_fops);
+    if (proc_entry == NULL)
     {
         ret = -ENOMEM;
+        printk(KERN_INFO "Modlist: Can't create /proc entry\n");
     }
     else
     {
-        memset(mylist, 0, BUFFER_LENGTH);
-        proc_entry = proc_create("clipboard", 0666, NULL, &proc_entry_fops);
-        if (proc_entry == NULL)
-        {
-            ret = -ENOMEM;
-            vfree(clipboard);
-            printk(KERN_INFO "Clipboard: Can't create /proc entry\n");
-        }
-        else
-        {
-            printk(KERN_INFO "Clipboard: Module loaded\n");
-        }
+        printk(KERN_INFO "Modlist: Module loaded\n");
     }
 
     return ret;
 }
 
-void exit_clipboard_module(void)
+void exit_modlist_module(void)
 {
-    remove_proc_entry("clipboard", NULL);
-    vfree(clipboard);
-    printk(KERN_INFO "Clipboard: Module unloaded.\n");
+    remove_proc_entry("modlist", NULL);
+    // !! Liberar memoria
+
+    printk(KERN_INFO "Modlist: Module unloaded.\n");
 }
 
-module_init(init_clipboard_module);
-module_exit(exit_clipboard_module);
+module_init(init_modlist_module);
+module_exit(exit_modlist_module);
