@@ -8,9 +8,10 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist");
-MODULE_AUTHOR("Daniel y Daniel");
+MODULE_AUTHOR("Daniel Martín del Castillo y Daniel Manjón Caballero");
 
-#define BUFFER_LENGTH PAGE_SIZE
+// Tamano del buffer del Kernel 
+#define TAM 50 
 
 static struct proc_dir_entry *proc_entry;
 
@@ -22,81 +23,86 @@ struct list_item
     struct list_head links;
 };
 
-static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
-{
-    int available_space = BUFFER_LENGTH - 1;
+static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t len, loff_t *off){
 
-    if ((*off) > 0) /* The application can write in this entry just once !! */
-        return 0;
-
-    if (len > available_space)
-    {
-        printk(KERN_INFO "Modlist: not enough space!!\n");
+    if (len > TAM){
+        printk(KERN_INFO "Modlist: not enough space for this entry!\n");
         return -ENOSPC;
     }
 
-    int number;
-    char* string;
+    char kbuf[TAM];
 
     // Copiar el buffer del usuario al nuestro para evitar problemas
-    // if(sscanf (buf, "add %i, &num") == 1)
+    if(copy_from_user(kbuf,buf,len)){
+        return -EFAULT;
+    }
 
-    sscanf(buf,"%s %d",string,&number);
+    //Anadir \0
+    kbuf[len] = '\0';
 
-    if(strcmp(string,"add") == 0){
-        struct list_item newItem = kmalloc(sizeof(list_item), GFP_KERNEL);
+    int number;
+
+    if(sscanf (kbuf, "add %i", &number) == 1){
+        struct list_item newItem = kmalloc(sizeof(list_item), GFP_KERNEL); 
         newItem.data = number;
 
         list_add_tail(newItem.links,&mylist);
     }
-    else if(strcmp(string,"remove") == 0){
+    else if(sscanf (kbuf, "remove %i", &number) == 1){
         struct list_item* item=NULL;
         struct list_head* cur_node=NULL;
 
         list_for_each_safe(cur_node,&mylist){
             item = list_entry(cur_node,struct list_item,links);
-            if(item.data==)
+            if(item->data==number){
+                list_del(cur_node);
+                kfree(cur_node);
+            }
         }
     }
-    else if(strcmp(string,"cleanup") == 0){
+    else if(strcmp(kbuf,"cleanup ") == 0){ // strcmp devuelve 0 si son iguales
+        struct list_item* item=NULL;
+        struct list_head* cur_node=NULL;
 
+        list_for_each_safe(cur_node,&mylist){
+            item = list_entry(cur_node,struct list_item,links);
+                list_del(cur_node);
+                kfree(cur_node);
+        }
     }
     else{
         printk(KERN_INFO "Modlist: Operation not permitted\n");
         return -EPERM;
     }
 
-
-    /* Transfer data from user to kernel space */
-    if (copy_from_user(&clipboard[0], buf, len))
-        return -EFAULT;
-
-    clipboard[len] = '\0'; /* Add the `\0' */
-    *off += len;           /* Update the file pointer */
+    // No hace falta mover nada, porque estamos 
+    // tratando con la lista, no con "char clipboard[TAM]""
 
     return len;
 }
 
 static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
+    int n_bytes = 0; // bytes "escritos"
 
-    int nr_bytes;
+    char *kbuf[128];
+    char *aux_kbuf[TAM];
 
-    if ((*off) > 0) /* Tell the application that there is nothing left to read */
-        return 0;
+    struct list_item* item=NULL;
+    struct list_head* cur_node=NULL;
 
-    nr_bytes = strlen(clipboard);
+    list_for_each(cur_node,&mylist){
+        item = list_entry(cur_node,struct list_item,links);
+        
+        // copiar el elemento de la lista al kbuf
 
-    if (len < nr_bytes)
-        return -ENOSPC;
+    }
 
-    /* Transfer data from the kernel to userspace */
-    if (copy_to_user(buf, clipboard, nr_bytes))
-        return -EINVAL;
+    if(copy_to_user(buf,kbuf,n_bytes)){
+        return -EFAULT;
+    }
 
-    (*off) += len; /* Update the file pointer */
-
-    return nr_bytes;
+    return n_bytes;
 }
 
 static const struct proc_ops proc_entry_fops = {
@@ -129,7 +135,15 @@ int init_modlist_module(void)
 void exit_modlist_module(void)
 {
     remove_proc_entry("modlist", NULL);
-    // !! Liberar memoria
+
+    // Liberar memoria:  Cleanup de los elementos
+    struct list_item* item=NULL;
+    struct list_head* cur_node=NULL;
+    list_for_each_safe(cur_node,&mylist){
+        item = list_entry(cur_node,struct list_item,links);
+        list_del(cur_node);
+        kfree(cur_node);
+    }    
 
     printk(KERN_INFO "Modlist: Module unloaded.\n");
 }
