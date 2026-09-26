@@ -8,7 +8,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist");
-MODULE_AUTHOR("Daniel y Daniel");
+MODULE_AUTHOR("Daniel Martín del Castillo y Daniel Manjón Caballero");
 
 // Tamano del buffer del Kernel 
 #define TAM 50 
@@ -83,24 +83,26 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 
 static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
+    int n_bytes = 0; // bytes "escritos"
 
-    int nr_bytes;
+    char *kbuf[128];
+    char *aux_kbuf[TAM];
 
-    if ((*off) > 0) /* Tell the application that there is nothing left to read */
-        return 0;
+    struct list_item* item=NULL;
+    struct list_head* cur_node=NULL;
 
-    nr_bytes = strlen(clipboard);
+    list_for_each(cur_node,&mylist){
+        item = list_entry(cur_node,struct list_item,links);
+        
+        // copiar el elemento de la lista al kbuf
 
-    if (len < nr_bytes)
-        return -ENOSPC;
+    }
 
-    /* Transfer data from the kernel to userspace */
-    if (copy_to_user(buf, clipboard, nr_bytes))
-        return -EINVAL;
+    if(copy_to_user(buf,kbuf,n_bytes)){
+        return -EFAULT;
+    }
 
-    (*off) += len; /* Update the file pointer */
-
-    return nr_bytes;
+    return n_bytes;
 }
 
 static const struct proc_ops proc_entry_fops = {
