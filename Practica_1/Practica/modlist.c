@@ -40,7 +40,6 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
     //Anadir \0
     kbuf[len] = '\0';
 
-
     int number;
 
     if(sscanf (kbuf, "add %i", &number) == 1){
@@ -68,6 +67,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
         list_for_each_safe(cur_node,&mylist){
             item = list_entry(cur_node,struct list_item,links);
                 list_del(cur_node);
+                kfree(cur_node);
         }
     }
     else{
@@ -133,7 +133,15 @@ int init_modlist_module(void)
 void exit_modlist_module(void)
 {
     remove_proc_entry("modlist", NULL);
-    // !! Liberar memoria
+
+    // Liberar memoria:  Cleanup de los elementos
+    struct list_item* item=NULL;
+    struct list_head* cur_node=NULL;
+    list_for_each_safe(cur_node,&mylist){
+        item = list_entry(cur_node,struct list_item,links);
+        list_del(cur_node);
+        kfree(cur_node);
+    }    
 
     printk(KERN_INFO "Modlist: Module unloaded.\n");
 }
