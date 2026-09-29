@@ -64,7 +64,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
             }
         }
     }
-    else if(strcmp(kbuf,"cleanup") == 0){ // strcmp devuelve 0 si son iguales
+    else if(strcmp(kbuf,"cleanup\n") == 0){ // strcmp devuelve 0 si son iguales
         struct list_item* item=NULL;
         struct list_head* cur_node=NULL;
         struct list_head* next_node = NULL;
@@ -76,7 +76,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
         }
     }
     else{
-        printk(KERN_INFO "Modlist: Operation not permitted\n");
+        printk(KERN_INFO "Modlist: Operation not permitted: %s\n",kbuf); // mejor para debugear
         return -EPERM;
     }
 
