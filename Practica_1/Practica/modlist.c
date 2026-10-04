@@ -8,7 +8,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist");
-MODULE_AUTHOR("Daniel Martín del Castillo y Daniel Manjón Caballero");
+MODULE_AUTHOR("Daniel Martin del Castillo y Daniel Manjon Caballero");
 
 // Tamano del buffer del Kernel 
 #define TAM 50 
@@ -24,13 +24,13 @@ struct list_item
 };
 
 static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t len, loff_t *off){
+    int number;
+    char kbuf[TAM];
 
     if (len >= TAM){
         printk(KERN_INFO "Modlist: not enough space for this entry!\n");
         return -ENOSPC;
     }
-
-    char kbuf[TAM];
 
     // Copiar el buffer del usuario al nuestro para evitar problemas
     if(copy_from_user(kbuf,buf,len)){
@@ -39,8 +39,6 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 
     //Anadir \0
     kbuf[len] = '\0';
-
-    int number;
 
     if(sscanf (kbuf, "add %i", &number) == 1){
         struct list_item* newItem = kmalloc(sizeof(struct list_item), GFP_KERNEL); 
@@ -153,12 +151,12 @@ int init_modlist_module(void)
 
 void exit_modlist_module(void)
 {
-    remove_proc_entry("modlist", NULL);
-
     // Liberar memoria:  Cleanup de los elementos
     struct list_item* item=NULL;
     struct list_head* cur_node=NULL;
     struct list_head* next_node = NULL;
+
+    remove_proc_entry("modlist", NULL);
 
     list_for_each_safe(cur_node,next_node,&mylist){
         item = list_entry(cur_node,struct list_item,links);
