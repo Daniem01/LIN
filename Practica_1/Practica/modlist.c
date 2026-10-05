@@ -5,6 +5,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/list.h>
+#include <linux/seq_file.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist");
@@ -84,6 +85,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
     return len;
 }
 
+/*read con la implementación de la parte obligatoria de la práctica
 static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
     int n_bytes = 0; // bytes "escritos"
@@ -121,6 +123,58 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 
     return len;
 }
+*/
+
+static void * seq_start(struct seq_file *m, loff_t *pos){
+
+    struct list_head* cur_node = NULL;
+
+    loff_t cur_pos = 0;
+
+    list_for_each(cur_node,&mylist){
+        if(cur_pos == (*pos)){
+            struct list_item *item = list_entry(cur_node,struct list_item,links);
+            return item;
+        }
+        else cur_pos = cur_pos + 1;
+    }
+
+    return NULL; // en caso de no encontrar la posición
+}
+
+static void * seq_next(struct seq_file*f, void* v, loff_t*pos){
+    (*pos) = (*pos) + 1; // avanzar off en 1 
+
+    struct list_item* item = v; // cast
+
+    if(item->links.next == &mylist){ 
+        return NULL; // esto es si el next es el nodo fantasma, aka el fin de la lista
+    }
+
+    return list_entry(item->links.next,struct list_item,links);
+}
+
+static void seq_stop(struct seq_file *m,void *v){
+    /* Nothing to do */
+}
+
+static int seq_show(struct seq_file* m,void * v){
+    struct list_item* item = v;
+
+    seq_printf(m,"%d\n",item->data);
+
+    return 0;
+}
+
+
+static const struct seq_operations seq_operations_modlist = {
+    .start = seq_start,
+    .next = seq_next,
+    .show = seq_show,
+    .stop = seq_stop,
+};
+
+
 
 static const struct proc_ops proc_entry_fops = {
     .proc_read = modlist_read,
