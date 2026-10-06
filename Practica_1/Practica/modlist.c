@@ -166,7 +166,6 @@ static int seq_show(struct seq_file* m,void * v){
     return 0;
 }
 
-
 static const struct seq_operations seq_operations_modlist = {
     .start = seq_start,
     .next = seq_next,
@@ -174,10 +173,13 @@ static const struct seq_operations seq_operations_modlist = {
     .stop = seq_stop,
 };
 
-
+static int modlist_open(struct inode* inode, struct file *file){
+    return seq_open(file, &seq_operations_modlist);
+}
 
 static const struct proc_ops proc_entry_fops = {
-    .proc_read = modlist_read,
+    .proc_open = modlist_open,
+    .proc_read = seq_read,
     .proc_write = modlist_write,
 };
 
