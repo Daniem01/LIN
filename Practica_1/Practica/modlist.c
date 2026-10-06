@@ -143,9 +143,9 @@ static void * seq_start(struct seq_file *m, loff_t *pos){ // escoge el primer el
 }
 
 static void * seq_next(struct seq_file*f, void* v, loff_t*pos){ // siguiente elemento de la lista
-    (*pos) = (*pos) + 1; // avanzar off en 1 
-
     struct list_item* item = v; // cast
+    
+    (*pos) = (*pos) + 1; // avanzar off en 1 
 
     if(item->links.next == &mylist){ 
         return NULL; // esto es si el next es el nodo fantasma, aka el fin de la lista
@@ -173,7 +173,7 @@ static const struct seq_operations seq_operations_modlist = { // conjunto de ops
     .stop = seq_stop,
 };
 
-static int modlist_open(struct inode* inode, struct file *file){ // asignar ops a seq_read
+static int modlist_open(struct inode* inode, struct file *file){ // Asignar ops a seq_read
     return seq_open(file, &seq_operations_modlist);
 }
 
@@ -181,6 +181,7 @@ static const struct proc_ops proc_entry_fops = {
     .proc_open = modlist_open,
     .proc_read = seq_read, // aquí es dónde remplazamos read por seq_read, que ya está implementada
     .proc_write = modlist_write,
+    .proc_release = seq_release, // Para liberar la memoria reservada por seq_open
 };
 
 int init_modlist_module(void)
