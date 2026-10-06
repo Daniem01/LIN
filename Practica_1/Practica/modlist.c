@@ -125,7 +125,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 }
 */
 
-static void * seq_start(struct seq_file *m, loff_t *pos){
+static void * seq_start(struct seq_file *m, loff_t *pos){ // escoge el primer elemento de la lista determinado por off
 
     struct list_head* cur_node = NULL;
 
@@ -142,7 +142,7 @@ static void * seq_start(struct seq_file *m, loff_t *pos){
     return NULL; // en caso de no encontrar la posición
 }
 
-static void * seq_next(struct seq_file*f, void* v, loff_t*pos){
+static void * seq_next(struct seq_file*f, void* v, loff_t*pos){ // siguiente elemento de la lista
     (*pos) = (*pos) + 1; // avanzar off en 1 
 
     struct list_item* item = v; // cast
@@ -154,11 +154,11 @@ static void * seq_next(struct seq_file*f, void* v, loff_t*pos){
     return list_entry(item->links.next,struct list_item,links);
 }
 
-static void seq_stop(struct seq_file *m,void *v){
+static void seq_stop(struct seq_file *m,void *v){ // en nuestro caso, no lo vamos a usar porque solo mostramos la lista entera
     /* Nothing to do */
 }
 
-static int seq_show(struct seq_file* m,void * v){
+static int seq_show(struct seq_file* m,void * v){ // printear el elemento
     struct list_item* item = v;
 
     seq_printf(m,"%d\n",item->data);
@@ -166,20 +166,20 @@ static int seq_show(struct seq_file* m,void * v){
     return 0;
 }
 
-static const struct seq_operations seq_operations_modlist = {
+static const struct seq_operations seq_operations_modlist = { // conjunto de ops que usa la función seq_read
     .start = seq_start,
     .next = seq_next,
     .show = seq_show,
     .stop = seq_stop,
 };
 
-static int modlist_open(struct inode* inode, struct file *file){
+static int modlist_open(struct inode* inode, struct file *file){ // asignar ops a seq_read
     return seq_open(file, &seq_operations_modlist);
 }
 
 static const struct proc_ops proc_entry_fops = {
     .proc_open = modlist_open,
-    .proc_read = seq_read,
+    .proc_read = seq_read, // aquí es dónde remplazamos read por seq_read, que ya está implementada
     .proc_write = modlist_write,
 };
 
