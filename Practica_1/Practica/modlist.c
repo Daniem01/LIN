@@ -154,7 +154,7 @@ static void * seq_next(struct seq_file*f, void* v, loff_t*pos){ // siguiente ele
     return list_entry(item->links.next,struct list_item,links);
 }
 
-static void seq_stop(struct seq_file *m,void *v){ // en nuestro caso, no lo vamos a usar porque solo mostramos la lista entera
+static void seq_stop(struct seq_file *m,void *v){ // en nuestro caso, no lo vamos a usar porque no reservamos memoria dinámica
     /* Nothing to do */
 }
 
@@ -182,6 +182,7 @@ static const struct proc_ops proc_entry_fops = {
     .proc_read = seq_read, // aquí es dónde remplazamos read por seq_read, que ya está implementada
     .proc_write = modlist_write,
     .proc_release = seq_release, // Para liberar la memoria reservada por seq_open
+    .proc_lseek = seq_lseek, // seq_lseek ya está implementada usando nuestras funciones seq
 };
 
 int init_modlist_module(void)
