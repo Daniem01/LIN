@@ -81,6 +81,8 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
     // No hace falta mover nada, porque estamos 
     // tratando con la lista, no con "char clipboard[TAM]""
 
+    (*off)+=len;
+
     return len;
 }
 
@@ -93,6 +95,8 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 
     struct list_item* item=NULL;
     struct list_head* cur_node=NULL;
+
+    if(*off > 0)return 0;
 
     list_for_each(cur_node,&mylist){
         int n = 0;
@@ -107,8 +111,6 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
             n_bytes = n_bytes + n;
         }
     }
-
-    if(*off >= n_bytes)return 0;
 
     // copiar solo lo que nos solicitan
     if(len > n_bytes - *off)len = n_bytes - *off;
