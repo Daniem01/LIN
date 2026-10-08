@@ -20,7 +20,7 @@ int main(void)
     char buf[BUFSIZE+1];
     
     /* Open /proc entry in read-only mode */
-    fd=open("/proc/cpuinfo",O_RDONLY);
+    fd=syscall(2,"/proc/cpuinfo",O_RDONLY);
     
     if (fd<0){
         fprintf(stderr,"Can't open the file\n");
@@ -40,6 +40,6 @@ int main(void)
     
     	
     /* Close the file and exit */ 
-    close(fd);
+    syscall(3,fd);
     return 0;
 }
