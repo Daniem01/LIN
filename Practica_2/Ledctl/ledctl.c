@@ -19,7 +19,22 @@ MODULE_AUTHOR("Daniel Martin del Castillo y Daniel Manjon Caballero");
 
 static struct proc_dir_entry *proc_entry;
 
-static ssize_t ledctl_write(struct file *filp, const char __user *buf, size_t len, loff_t *off){
+struct tty_driver* kbd_driver;
+
+/* Get driver handler */
+struct tty_driver* get_kbd_driver_handler(void){
+   printk(KERN_INFO "modleds: loading\n");
+   printk(KERN_INFO "modleds: fgconsole is %x\n", fg_console);
+   return vc_cons[fg_console].d->port.tty->driver;
+}
+
+/* Set led state to that specified by mask */
+static inline int set_leds(struct tty_driver* handler, unsigned int mask){
+    return (handler->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED,mask);
+}
+
+// Ojo, hay que llamar a la escritura con 'sudo'
+static ssize_t ledctl_write(struct file *filp, const char __user *buf, size_t len, loff_t *off){ 
     int number;
     char kbuf[TAM];
 
@@ -40,14 +55,11 @@ static ssize_t ledctl_write(struct file *filp, const char __user *buf, size_t le
             printk(KERN_DEBUG "El valor del num introducido es %i \n",number);
 
             // Código usable para el parche
-            struct tty_driver* kbd_driver = vc_cons[fg_console].d->port.tty->driver; // get Driver handler
+            kbd_driver = get_kbd_driver_handler();
 
             if(kbd_driver == NULL)printk(KERN_DEBUG "El handler es null\n");
 
-            // set leds to mask
-            int retDriver = ((kbd_driver->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED,number));
-
-            printk(KERN_DEBUG "retDriver = %i \n",retDriver);
+            set_leds(kbd_driver,number);
         }
         else{
             printk(KERN_INFO "Ledctl: this number is not permited\n");
