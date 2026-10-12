@@ -33,6 +33,7 @@ static ssize_t clipboard_write(struct file *filp, const char __user *buf, size_t
 
   clipboard[len] = '\0'; /* Add the `\0' */  
   *off+=len;            /* Update the file pointer */
+
   
   return len;
 }
