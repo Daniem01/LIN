@@ -5,9 +5,10 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/list.h>
+#include <linux/spinlock.h>
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Modlist");
+MODULE_DESCRIPTION("Modlist SMP-Safe");
 MODULE_AUTHOR("Daniel Martin del Castillo y Daniel Manjon Caballero");
 
 // Tamano del buffer del Kernel 
@@ -22,6 +23,8 @@ struct list_item
     int data;
     struct list_head links;
 };
+
+DEFINE_SPINLOCK(spinLock);
 
 static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t len, loff_t *off){
     int number;
@@ -47,12 +50,18 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 
         newItem->data = number;
 
+        spin_lock(spinLock);
+
         list_add_tail(&newItem->links,&mylist);
+
+        spin_unlock(spinLock);
     }
     else if(sscanf (kbuf, "remove %i", &number) == 1){
         struct list_item* item=NULL;
         struct list_head* cur_node=NULL;
         struct list_head* next_node = NULL;
+
+        spin_lock(spinLock);
 
         list_for_each_safe(cur_node,next_node,&mylist){
             item = list_entry(cur_node,struct list_item,links);
@@ -61,17 +70,25 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
                 kfree(item);
             }
         }
+
+        spin_unlock(spinLock);
+
     }
     else if(strcmp(kbuf,"cleanup\n") == 0){ // strcmp devuelve 0 si son iguales
         struct list_item* item=NULL;
         struct list_head* cur_node=NULL;
         struct list_head* next_node = NULL;
 
+        spin_lock(spinLock);
+
         list_for_each_safe(cur_node,next_node,&mylist){
             item = list_entry(cur_node,struct list_item,links);
                 list_del(cur_node);
                 kfree(item);
         }
+
+        spin_unlock(spinLock);
+
     }
     else{
         printk(KERN_INFO "Modlist: Operation not permitted: %s\n",kbuf); // mejor para debugear
@@ -98,6 +115,8 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 
     if(*off > 0)return 0;
 
+    spin_lock(spinLock);
+
     list_for_each(cur_node,&mylist){
         int n = 0;
         item = list_entry(cur_node,struct list_item,links);
@@ -111,6 +130,8 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
             n_bytes = n_bytes + n;
         }
     }
+
+    spin_unlock(spinLock);
 
     // copiar solo lo que nos solicitan
     if(len > n_bytes - *off)len = n_bytes - *off;
@@ -157,6 +178,8 @@ void exit_modlist_module(void)
     struct list_item* item=NULL;
     struct list_head* cur_node=NULL;
     struct list_head* next_node = NULL;
+
+    spin_lock(spinLock);
 
     remove_proc_entry("modlist", NULL);
 
