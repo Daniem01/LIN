@@ -53,7 +53,11 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 
         spin_lock(&spinLock);
 
+        printk(KERN_DEBUG "Modlist: Entering add critical region with number %i\n",number);
+
         list_add_tail(&newItem->links,&mylist);
+
+        printk(KERN_DEBUG "Modlist: Exited add critical region\n");
 
         spin_unlock(&spinLock);
     }
