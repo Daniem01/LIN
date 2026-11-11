@@ -6,6 +6,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kfifo.h>
 #include <linux/semaphore.h>
+#include <linux/uaccess.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("prodCons | Practica 4 Parte B");
@@ -25,7 +26,7 @@ static ssize_t prodCons_write(struct file *filp, const char __user *buf, size_t 
 
 struct kfifo buf_circ; // buffer circular
 
-DEFINE_SEMAPHORE(mtx)
+DEFINE_SEMAPHORE(mtx);
 struct semaphore huecos;
 struct semaphore elementos;
 
@@ -38,15 +39,13 @@ static struct file_operations fops = {
 
 int param_capacity=4; // numero de enteros
 module_param(param_capacity, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(stime_ms, "Capacity of the Kfifo list");
+MODULE_PARM_DESC(param_capacity, "Capacity of the Kfifo list");
 
 static struct miscdevice misc_prodCons = {
     .minor = MISC_DYNAMIC_MINOR,    /* kernel dynamically assigns a free minor# */
-    .name = DEVICE_NAME, /* when misc_register() is invoked, the kernel
-                        * will auto-create device file as /dev/chardev ;
-                        * also populated within /sys/class/misc/ and /sys/devices/virtual/misc/ */
-    .mode = 0666,     /* ... dev node perms set as specified here */
-    .fops = &fops,    /* connect to this driver's 'functionality' */
+    .name = DEVICE_NAME, 
+    .mode = 0666,   
+    .fops = &fops,    
 };
 
 
@@ -65,12 +64,13 @@ int init_module(void)
     }
 
     sema_init(&huecos,param_capacity);
-    sema_init(&elementos,param_capacity);
+    sema_init(&elementos,0);
 
     ret = misc_register(&misc_prodCons);
 
     if (ret) {
         pr_err("Couldn't register misc device\n");
+        kfifo_free(&buf_circ);
         return ret;
     }
 
@@ -118,16 +118,25 @@ static ssize_t prodCons_write(struct file *filp,
 
     char kbuf[MAX_CHARS_INPUT+1];
     int val=0;
+
+    if(len > MAX_CHARS_INPUT){
+        printk(KERN_INFO "prodCons: Too much input\n");
+        return -ENOMEM;
+    }
     
-    copy_form_user(&kbuf,buf,len);
+    if(copy_from_user(&kbuf,buf,len)){
+        return -EFAULT;
+    }
+
+    kbuf[len] = '\0';
 
     if(sscanf(kbuf,"%i",&val) == 1){
-
-        if(down_interrumpible(&huecos)){
+        
+        if(down_interruptible(&huecos)){
             return -EINTR; // ha sido interrumpido
         }
 
-        if(down_interrumpible(&mtx)){ // comienzo region mtx
+        if(down_interruptible(&mtx)){ // comienzo region mtx
             up(&huecos);
             return -EINTR; // ha sido interrumpido y debe liberar el hueco, porque no ha hecho nada
         }
@@ -154,19 +163,23 @@ static ssize_t prodCons_read(struct file *filp,
 
     int val=0;
 
-    if(down_interrumpible(&elementos)){
+    if(down_interruptible(&elementos)){
         return -EINTR;
     }
 
-    if(down_interrumpible(&mtx)){ // comienzo region mtx
+    if(down_interruptible(&mtx)){ // comienzo region mtx
         up(&elementos);
         return -EINTR;
     }
 
-    kfifo(&buf_circ,&val,sizeof(int)); 
+    kfifo_out(&buf_circ,&val,sizeof(int)); 
 
     up(&mtx);
     up(&huecos);
+
+    if(copy_to_user(buf,&val,sizeof(int))){
+        return -EFAULT;
+    }
 
     *off+=len;
     return len;
