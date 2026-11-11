@@ -172,6 +172,8 @@ static ssize_t prodCons_read(struct file *filp,
 
     int val=0;
 
+    if((*off)>0)return 0;
+
     if(down_interruptible(&elementos)){
         return -EINTR;
     }
@@ -191,7 +193,11 @@ static ssize_t prodCons_read(struct file *filp,
     up(&mtx);
     up(&huecos);
 
-    if(copy_to_user(buffer,&val,sizeof(int))){
+    char val_buffer[MAX_CHARS_INPUT+1];
+
+    snprintf(val_buffer,sizeof(val_buffer),"%i\n",val);
+
+    if(copy_to_user(buffer,val_buffer,sizeof(val_buffer))){
         return -EFAULT;
     }
 
