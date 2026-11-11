@@ -56,6 +56,11 @@ int init_module(void)
     int ret;
     struct device *device;
 
+    if(!(param_capacity == 4 || param_capacity == 8)){
+        printk(KERN_INFO "prodCons: paramCapacity is invalid, returning to size 4...\n");
+        param_capacity = 4;
+    }
+
     ret = kfifo_alloc(&buf_circ,(param_capacity * sizeof(int)),GFP_KERNEL);
 
     if(ret){
@@ -141,7 +146,12 @@ static ssize_t prodCons_write(struct file *filp,
             return -EINTR; // ha sido interrumpido y debe liberar el hueco, porque no ha hecho nada
         }
 
-        kfifo_in(&buf_circ,&val,sizeof(int));
+        if(kfifo_in(&buf_circ,&val,sizeof(int)) != sizeof(int)){
+            printk(KERN_INFO "prodCons: Kfifo_in failed, tried to insert %i \n",val);
+            up(&mtx);
+            up(&huecos);
+            return -EFAULT;
+        }
 
         up(&mtx); // fin region mtx
         up(&elementos);
@@ -159,7 +169,6 @@ static ssize_t prodCons_read(struct file *filp,
                            size_t len,   
                            loff_t * off)
 {  
-    if (*off > 0)return 0;
 
     int val=0;
 
@@ -172,15 +181,20 @@ static ssize_t prodCons_read(struct file *filp,
         return -EINTR;
     }
 
-    kfifo_out(&buf_circ,&val,sizeof(int)); 
+    if(kfifo_out(&buf_circ,&val,sizeof(int)) != sizeof(int)){
+        printk(KERN_INFO "prodCons: Kfifo_out failed\n");
+        up(&mtx);
+        up(&elementos);
+        return -EFAULT;
+    }
 
     up(&mtx);
     up(&huecos);
 
-    if(copy_to_user(buf,&val,sizeof(int))){
+    if(copy_to_user(buffer,&val,sizeof(int))){
         return -EFAULT;
     }
 
-    *off+=len;
-    return len;
+    *off+=sizeof(int);
+    return sizeof(int);
 }
