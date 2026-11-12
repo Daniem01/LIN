@@ -37,9 +37,9 @@ static struct file_operations fops = {
     .release = prodCons_release,
 };
 
-int param_capacity=4; // numero de enteros
-module_param(param_capacity, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(param_capacity, "Capacity of the Kfifo list");
+int capacity=4; // numero de enteros
+module_param(capacity, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(capacity, "Capacity of the Kfifo list");
 
 static struct miscdevice misc_prodCons = {
     .minor = MISC_DYNAMIC_MINOR,    /* kernel dynamically assigns a free minor# */
@@ -56,19 +56,19 @@ int init_module(void)
     int ret;
     struct device *device;
 
-    if(!(param_capacity == 4 || param_capacity == 8)){
-        printk(KERN_INFO "prodCons: paramCapacity is invalid, returning to size 4...\n");
-        param_capacity = 4;
+    if(!(capacity == 4 || capacity == 8)){
+        printk(KERN_INFO "prodCons: param 'capacity' is invalid, returning to size 4...\n");
+        capacity = 4;
     }
 
-    ret = kfifo_alloc(&buf_circ,(param_capacity * sizeof(int)),GFP_KERNEL);
+    ret = kfifo_alloc(&buf_circ,(capacity * sizeof(int)),GFP_KERNEL);
 
     if(ret){
         printk(KERN_INFO "Error allocating memory for Kfifo\n");
         return ret;
     }
 
-    sema_init(&huecos,param_capacity);
+    sema_init(&huecos,capacity);
     sema_init(&elementos,0);
 
     ret = misc_register(&misc_prodCons);
@@ -119,10 +119,10 @@ static ssize_t prodCons_write(struct file *filp,
                             size_t len,
                             loff_t *off)
 {
-    if((*off) > 0)return 0;
-
     char kbuf[MAX_CHARS_INPUT+1];
     int val=0;
+
+    if((*off) > 0)return 0;
 
     if(len > MAX_CHARS_INPUT){
         printk(KERN_INFO "prodCons: Too much input\n");
@@ -172,6 +172,8 @@ static ssize_t prodCons_read(struct file *filp,
 
     int val=0;
 
+    char val_buffer[MAX_CHARS_INPUT+1];
+
     if((*off)>0)return 0;
 
     if(down_interruptible(&elementos)){
@@ -192,8 +194,6 @@ static ssize_t prodCons_read(struct file *filp,
 
     up(&mtx);
     up(&huecos);
-
-    char val_buffer[MAX_CHARS_INPUT+1];
 
     snprintf(val_buffer,sizeof(val_buffer),"%i\n",val);
 
