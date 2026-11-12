@@ -1,9 +1,7 @@
 #!/bin/bash
 
-while true; do
-    for i in {100..199}; do
-        echo "add $i" >> /proc/modlist
-        sleep 3
-    done
-    echo "cleanup" >> /proc/modlist
+for i in {1..100}; do
+    echo "Inserting $i ..."
+    echo "add $i" >> /proc/modlist
+    sleep 0.5
 done

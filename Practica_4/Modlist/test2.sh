@@ -1,9 +1,8 @@
 #!/bin/bash
 
-while true; do
-    for i in {200..299}; do
-        echo "add $i" >> /proc/modlist
-        sleep 1
-    done
-    echo "cleanup" >> /proc/modlist
+for i in {1..100}; do
+    echo "Erasing $i ..."
+    echo "remove $i" >> /proc/modlist
+    cat /proc/modlist
+    sleep 0.5
 done
