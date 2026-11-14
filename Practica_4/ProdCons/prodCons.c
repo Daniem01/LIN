@@ -31,6 +31,9 @@ struct semaphore huecos;
 struct semaphore elementos;
 
 static struct file_operations fops = {
+    .owner = THIS_MODULE, // esta línea hace que el Kernel lleve un contador de referencias
+                         //  de cuántas instancias de las funciones del módulo están activas 
+                        //   y evita que se descargue el módulo en caso de que cont > 0
     .read = prodCons_read,
     .write = prodCons_write,
     .open = prodCons_open,

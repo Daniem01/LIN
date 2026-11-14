@@ -151,6 +151,9 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 }
 
 static const struct proc_ops proc_entry_fops = {
+    .owner = THIS_MODULE, // esta línea hace que el Kernel lleve un contador de referencias
+                         //  de cuántas instancias de las funciones del módulo están activas 
+                        //   y evita que se descargue el módulo en caso de que cont > 0
     .proc_read = modlist_read,
     .proc_write = modlist_write,
 };
