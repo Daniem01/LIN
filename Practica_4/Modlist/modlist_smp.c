@@ -41,6 +41,8 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
         return -EFAULT;
     }
 
+    try_module_get(THIS_MODULE);
+
     //Anadir \0
     kbuf[len] = '\0';
 
@@ -97,6 +99,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
     }
     else{
         printk(KERN_INFO "Modlist: Operation not permitted: %s\n",kbuf); // mejor para debugear
+        module_put(THIS_MODULE);
         return -EPERM;
     }
 
@@ -104,6 +107,8 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
     // tratando con la lista, no con "char clipboard[TAM]""
 
     (*off)+=len;
+
+    module_put(THIS_MODULE);
 
     return len;
 }
@@ -119,6 +124,8 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
     struct list_head* cur_node=NULL;
 
     if(*off > 0)return 0;
+
+    try_module_get(THIS_MODULE);
 
     spin_lock(&spinLock);
 
@@ -147,13 +154,12 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 
     *off += len;
 
+    module_put(THIS_MODULE);
+
     return len;
 }
 
 static const struct proc_ops proc_entry_fops = {
-    .owner = THIS_MODULE, // esta línea hace que el Kernel lleve un contador de referencias
-                         //  de cuántas instancias de las funciones del módulo están activas 
-                        //   y evita que se descargue el módulo en caso de que cont > 0
     .proc_read = modlist_read,
     .proc_write = modlist_write,
 };

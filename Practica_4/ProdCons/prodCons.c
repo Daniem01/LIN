@@ -31,9 +31,6 @@ struct semaphore huecos;
 struct semaphore elementos;
 
 static struct file_operations fops = {
-    .owner = THIS_MODULE, // esta línea hace que el Kernel lleve un contador de referencias
-                         //  de cuántas instancias de las funciones del módulo están activas 
-                        //   y evita que se descargue el módulo en caso de que cont > 0
     .read = prodCons_read,
     .write = prodCons_write,
     .open = prodCons_open,
@@ -140,6 +137,8 @@ static ssize_t prodCons_write(struct file *filp,
 
     if(sscanf(kbuf,"%i",&val) == 1){
         
+        try_module_get(THIS_MODULE);
+
         if(down_interruptible(&huecos)){
             return -EINTR; // ha sido interrumpido
         }
@@ -158,6 +157,8 @@ static ssize_t prodCons_write(struct file *filp,
 
         up(&mtx); // fin region mtx
         up(&elementos);
+
+        module_put(THIS_MODULE);
     }
     else {
         printk(KERN_INFO "prodCons: Operation not permitted: %s\n",kbuf);
@@ -178,6 +179,8 @@ static ssize_t prodCons_read(struct file *filp,
     char val_buffer[MAX_CHARS_INPUT+1];
 
     if((*off)>0)return 0;
+
+    try_module_get(THIS_MODULE);
 
     if(down_interruptible(&elementos)){
         return -EINTR;
@@ -203,6 +206,8 @@ static ssize_t prodCons_read(struct file *filp,
     if(copy_to_user(buffer,val_buffer,sizeof(val_buffer))){
         return -EFAULT;
     }
+
+    module_put(THIS_MODULE);
 
     *off+=sizeof(int);
     return sizeof(int);
